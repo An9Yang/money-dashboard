@@ -33,8 +33,8 @@ for idx, (sym, src) in enumerate(all_symbols):
     name = cfg.get("name", sym)
 
     with tabs[idx]:
-        # 时间粒度选择 + 技术指标开关
-        opt_col1, opt_col2 = st.columns([2, 1])
+        # 控制栏：时间粒度 + 技术指标开关
+        opt_col1, _, opt_col2 = st.columns([3, 4, 2])
         with opt_col1:
             timeframe = st.radio("时间粒度", ["日线", "小时线"], horizontal=True,
                                 key=f"tf_{sym}")
@@ -59,23 +59,24 @@ for idx, (sym, src) in enumerate(all_symbols):
                 else:
                     date_col = "date"
 
-        # 价格指标卡
-        col1, col2, col3 = st.columns([1, 3, 3])
-        with col1:
-            render_price_card(name, df)
+        st.divider()
 
-        # K线图
-        with col2:
+        # 价格指标卡 + K线图
+        col_price, col_chart = st.columns([1, 5])
+        with col_price:
+            render_price_card(name, df)
+        with col_chart:
             fig = create_candlestick(df, title=f"{name} K线图",
                                      date_col=date_col,
                                      show_indicators=show_ta)
-            st.plotly_chart(fig, width="stretch")
+            st.plotly_chart(fig, use_container_width=True)
 
-        # 成交量
-        with col3:
-            fig = create_volume_bar(df, date_col=date_col)
-            st.plotly_chart(fig, width="stretch")
+        # 成交量（全宽）
+        fig = create_volume_bar(df, date_col=date_col)
+        st.plotly_chart(fig, use_container_width=True)
 
-        # 逐日明细
-        st.subheader("逐日涨跌明细")
-        render_detail_table(df, date_col=date_col)
+        st.divider()
+
+        # 逐日明细（可折叠）
+        with st.expander("逐日涨跌明细", expanded=False):
+            render_detail_table(df, date_col=date_col)

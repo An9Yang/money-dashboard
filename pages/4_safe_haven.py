@@ -27,7 +27,7 @@ for idx, sym in enumerate(symbols):
     name = cfg["name"]
 
     with tabs[idx]:
-        opt_col1, opt_col2 = st.columns([2, 1])
+        opt_col1, _, opt_col2 = st.columns([3, 4, 2])
         with opt_col1:
             timeframe = st.radio("时间粒度", ["日线", "小时线"], horizontal=True,
                                 key=f"tf_{sym}")
@@ -41,17 +41,21 @@ for idx, sym in enumerate(symbols):
             df = get_minute_kline(sym, "60")
             date_col = "datetime"
 
-        col1, col2, col3 = st.columns([1, 3, 3])
-        with col1:
+        st.divider()
+
+        col_price, col_chart = st.columns([1, 5])
+        with col_price:
             render_price_card(name, df)
-        with col2:
+        with col_chart:
             fig = create_candlestick(df, title=f"{name} K线图",
                                      date_col=date_col,
                                      show_indicators=show_ta)
-            st.plotly_chart(fig, width="stretch")
-        with col3:
-            fig = create_volume_bar(df, date_col=date_col)
-            st.plotly_chart(fig, width="stretch")
+            st.plotly_chart(fig, use_container_width=True)
 
-        st.subheader("逐日涨跌明细")
-        render_detail_table(df, date_col=date_col)
+        fig = create_volume_bar(df, date_col=date_col)
+        st.plotly_chart(fig, use_container_width=True)
+
+        st.divider()
+
+        with st.expander("逐日涨跌明细", expanded=False):
+            render_detail_table(df, date_col=date_col)

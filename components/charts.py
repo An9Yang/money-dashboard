@@ -35,6 +35,12 @@ def create_candlestick(df: pd.DataFrame, title: str = "",
                           font=dict(size=20, color="gray"))
         return fig
 
+    # 防御性类型转换：确保 OHLC 列为数值类型
+    for col in ["open", "high", "low", "close"]:
+        if col in df.columns and not pd.api.types.is_numeric_dtype(df[col]):
+            df = df.copy()
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+
     x_data = df[date_col] if date_col in df.columns else df.index
 
     if not show_indicators:
@@ -131,6 +137,14 @@ def create_volume_bar(df: pd.DataFrame, date_col: str = "date") -> go.Figure:
     if vol_col not in df.columns:
         return go.Figure()
 
+    # 防御性类型转换
+    if not pd.api.types.is_numeric_dtype(df["close"]):
+        df = df.copy()
+        df["close"] = pd.to_numeric(df["close"], errors="coerce")
+    if not pd.api.types.is_numeric_dtype(df[vol_col]):
+        df = df.copy()
+        df[vol_col] = pd.to_numeric(df[vol_col], errors="coerce")
+
     colors = []
     for i in range(len(df)):
         if i == 0:
@@ -150,10 +164,11 @@ def create_volume_bar(df: pd.DataFrame, date_col: str = "date") -> go.Figure:
     fig.update_layout(
         title="成交量",
         template="plotly_dark",
-        height=200,
-        margin=dict(l=50, r=20, t=40, b=30),
+        height=180,
+        margin=dict(l=50, r=20, t=30, b=20),
         xaxis_title="",
         yaxis_title="",
+        xaxis_rangeslider_visible=False,
     )
     return fig
 

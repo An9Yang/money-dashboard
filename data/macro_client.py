@@ -3,7 +3,20 @@
 import streamlit as st
 import akshare as ak
 import pandas as pd
+import requests
 from config import CACHE_TTL
+
+# 缩短 akshare 底层 HTTP 超时，避免在 Cloud 上长时间挂起
+_TIMEOUT = 15  # 秒
+_original_get = requests.Session.get
+
+
+def _patched_get(self, *args, **kwargs):
+    kwargs.setdefault("timeout", _TIMEOUT)
+    return _original_get(self, *args, **kwargs)
+
+
+requests.Session.get = _patched_get
 
 
 @st.cache_data(ttl=CACHE_TTL["macro"])

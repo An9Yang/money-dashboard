@@ -97,17 +97,24 @@ st.divider()
 
 # --- 迷你走势图 ---
 st.subheader("近两周走势一览")
-sparkline_cols = st.columns(5)
-for i, row in enumerate(overview_rows):
+# 每行 6 个迷你走势图
+_SPARK_COLS = 6
+spark_items = []
+for row in overview_rows:
     sym = row["代码"]
     df = all_data.get(sym)
     spark_data = get_sparkline_data(df, 15)
     if spark_data:
-        col_idx = i % 5
-        with sparkline_cols[col_idx]:
-            fig = create_sparkline(spark_data)
-            st.plotly_chart(fig, width="stretch", key=f"spark_{sym}")
-            st.caption(row["品种"])
+        spark_items.append((sym, row["品种"], spark_data))
+
+for batch_start in range(0, len(spark_items), _SPARK_COLS):
+    batch = spark_items[batch_start:batch_start + _SPARK_COLS]
+    cols = st.columns(_SPARK_COLS)
+    for j, (sym, name, data) in enumerate(batch):
+        with cols[j]:
+            fig = create_sparkline(data)
+            st.plotly_chart(fig, use_container_width=True, key=f"spark_{sym}")
+            st.caption(name)
 
 st.divider()
 
@@ -116,7 +123,7 @@ st.subheader("涨跌幅热力图")
 heatmap_df = build_heatmap_data(overview_rows)
 if not heatmap_df.empty:
     fig = create_heatmap(heatmap_df)
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 else:
     st.info("数据不足，无法生成热力图")
 

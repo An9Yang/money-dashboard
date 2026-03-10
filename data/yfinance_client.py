@@ -16,6 +16,10 @@ def _flatten_columns(df: pd.DataFrame) -> pd.DataFrame:
     df.columns = [str(c).lower().strip() for c in df.columns]
     if "adj close" in df.columns:
         df = df.rename(columns={"adj close": "adj_close"})
+    # 确保 OHLCV 列为数值类型
+    for col in ["open", "high", "low", "close", "volume"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
     return df
 
 

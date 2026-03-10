@@ -146,4 +146,4 @@ def render_detail_table(df: pd.DataFrame, date_col: str = "date"):
     col_map = {date_col: "日期", "open": "开盘", "high": "最高",
                "low": "最低", "close": "收盘", "volume": "成交量"}
     display = display.rename(columns=col_map)
-    st.dataframe(display, width="stretch", hide_index=True)
+    st.dataframe(display, use_container_width=True, hide_index=True)
