@@ -6,9 +6,28 @@ import pandas as pd
 import numpy as np
 
 
+def _calc_ma(series: pd.Series, window: int) -> pd.Series:
+    """计算移动平均线"""
+    return series.rolling(window=window, min_periods=1).mean()
+
+
+def _calc_rsi(series: pd.Series, period: int = 14) -> pd.Series:
+    """计算 RSI 指标"""
+    delta = series.diff()
+    gain = delta.where(delta > 0, 0.0)
+    loss = (-delta).where(delta < 0, 0.0)
+    avg_gain = gain.rolling(window=period, min_periods=1).mean()
+    avg_loss = loss.rolling(window=period, min_periods=1).mean()
+    rsi = pd.Series(50.0, index=series.index)
+    valid = (avg_gain + avg_loss) > 0
+    rsi[valid] = 100 * avg_gain[valid] / (avg_gain[valid] + avg_loss[valid])
+    return rsi
+
+
 def create_candlestick(df: pd.DataFrame, title: str = "",
-                       date_col: str = "date") -> go.Figure:
-    """创建 K 线图"""
+                       date_col: str = "date",
+                       show_indicators: bool = False) -> go.Figure:
+    """创建 K 线图，可选叠加技术指标（MA20/MA60 + RSI）"""
     if df is None or df.empty:
         fig = go.Figure()
         fig.add_annotation(text="暂无数据", x=0.5, y=0.5,
@@ -16,31 +35,90 @@ def create_candlestick(df: pd.DataFrame, title: str = "",
                           font=dict(size=20, color="gray"))
         return fig
 
-    fig = go.Figure()
+    x_data = df[date_col] if date_col in df.columns else df.index
+
+    if not show_indicators:
+        # 无技术指标：单图模式
+        fig = go.Figure()
+        fig.add_trace(go.Candlestick(
+            x=x_data,
+            open=df["open"], high=df["high"],
+            low=df["low"], close=df["close"],
+            name="K线",
+            increasing_line_color="#FF4B4B",
+            decreasing_line_color="#00C853",
+            increasing_fillcolor="#FF4B4B",
+            decreasing_fillcolor="#00C853",
+        ))
+        fig.update_layout(
+            title=title, xaxis_title="日期", yaxis_title="价格",
+            template="plotly_dark", height=450,
+            xaxis_rangeslider_visible=False,
+            margin=dict(l=50, r=20, t=50, b=30),
+        )
+        return fig
+
+    # 带技术指标：K线 + MA + RSI 子图
+    from plotly.subplots import make_subplots
+    fig = make_subplots(
+        rows=2, cols=1, shared_xaxes=True,
+        vertical_spacing=0.03,
+        row_heights=[0.7, 0.3],
+        subplot_titles=[title, "RSI(14)"],
+    )
 
     # K线
     fig.add_trace(go.Candlestick(
-        x=df[date_col] if date_col in df.columns else df.index,
-        open=df["open"],
-        high=df["high"],
-        low=df["low"],
-        close=df["close"],
+        x=x_data,
+        open=df["open"], high=df["high"],
+        low=df["low"], close=df["close"],
         name="K线",
         increasing_line_color="#FF4B4B",
         decreasing_line_color="#00C853",
         increasing_fillcolor="#FF4B4B",
         decreasing_fillcolor="#00C853",
-    ))
+    ), row=1, col=1)
+
+    # MA20
+    ma20 = _calc_ma(df["close"], 20)
+    fig.add_trace(go.Scatter(
+        x=x_data, y=ma20, mode="lines",
+        line=dict(color="#FFA500", width=1.2),
+        name="MA20",
+    ), row=1, col=1)
+
+    # MA60
+    ma60 = _calc_ma(df["close"], 60)
+    fig.add_trace(go.Scatter(
+        x=x_data, y=ma60, mode="lines",
+        line=dict(color="#4B9DFF", width=1.2),
+        name="MA60",
+    ), row=1, col=1)
+
+    # RSI
+    rsi = _calc_rsi(df["close"], 14)
+    fig.add_trace(go.Scatter(
+        x=x_data, y=rsi, mode="lines",
+        line=dict(color="#E040FB", width=1.2),
+        name="RSI(14)",
+    ), row=2, col=1)
+
+    # RSI 超买超卖线
+    fig.add_hline(y=70, line_dash="dash", line_color="rgba(255,75,75,0.5)",
+                  row=2, col=1)
+    fig.add_hline(y=30, line_dash="dash", line_color="rgba(0,200,83,0.5)",
+                  row=2, col=1)
 
     fig.update_layout(
-        title=title,
-        xaxis_title="日期",
-        yaxis_title="价格",
-        template="plotly_dark",
-        height=450,
+        template="plotly_dark", height=600,
+        xaxis2_rangeslider_visible=False,
         xaxis_rangeslider_visible=False,
         margin=dict(l=50, r=20, t=50, b=30),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
+    fig.update_yaxes(title_text="价格", row=1, col=1)
+    fig.update_yaxes(title_text="RSI", row=2, col=1, range=[0, 100])
+
     return fig
 
 

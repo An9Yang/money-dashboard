@@ -33,10 +33,11 @@ YFINANCE_SYMBOLS = {
     "CL=F": {"name": "WTI 原油", "exchange": "NYMEX", "tier": "T1"},
     "BZ=F": {"name": "布伦特原油", "exchange": "ICE", "tier": "T1"},
     "NG=F": {"name": "天然气", "exchange": "NYMEX", "tier": "T1"},
+    "CNY=X": {"name": "USD/CNY", "exchange": "FX", "tier": "FX"},
 }
 
 # 顶部指标卡显示品种
-TOP_METRICS = ["CL=F", "BZ=F", "SC0", "AU0"]
+TOP_METRICS = ["CL=F", "BZ=F", "SC0", "AU0", "CNY=X"]
 
 # 梯队品种分组
 TIER_GROUPS = {

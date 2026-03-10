@@ -33,9 +33,13 @@ for idx, (sym, src) in enumerate(all_symbols):
     name = cfg.get("name", sym)
 
     with tabs[idx]:
-        # 时间粒度选择
-        timeframe = st.radio("时间粒度", ["日线", "小时线"], horizontal=True,
-                            key=f"tf_{sym}")
+        # 时间粒度选择 + 技术指标开关
+        opt_col1, opt_col2 = st.columns([2, 1])
+        with opt_col1:
+            timeframe = st.radio("时间粒度", ["日线", "小时线"], horizontal=True,
+                                key=f"tf_{sym}")
+        with opt_col2:
+            show_ta = st.checkbox("显示技术指标", key=f"ta_{sym}")
 
         if src == "akshare":
             if timeframe == "日线":
@@ -62,7 +66,9 @@ for idx, (sym, src) in enumerate(all_symbols):
 
         # K线图
         with col2:
-            fig = create_candlestick(df, title=f"{name} K线图", date_col=date_col)
+            fig = create_candlestick(df, title=f"{name} K线图",
+                                     date_col=date_col,
+                                     show_indicators=show_ta)
             st.plotly_chart(fig, width="stretch")
 
         # 成交量

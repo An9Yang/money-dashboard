@@ -1,4 +1,4 @@
-"""全品种总览 — 核心页面"""
+"""全品种总览 — 核心页面（并行加载 + 新闻预览）"""
 
 import streamlit as st
 import sys
@@ -6,6 +6,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from streamlit_autorefresh import st_autorefresh
 from datetime import datetime
 from config import (AKSHARE_SYMBOLS, YFINANCE_SYMBOLS, TOP_METRICS,
@@ -38,25 +39,35 @@ with st.sidebar:
 st.title("大宗商品期货监控")
 st.caption("中东局势升级 — 原油及石化产业链品种实时追踪")
 
-# --- 加载数据 ---
-with st.spinner("正在加载数据..."):
+
+# --- 并行加载数据 ---
+def _fetch_one(sym: str) -> tuple:
+    """获取单品种数据，返回 (symbol, dataframe)"""
+    if sym in YFINANCE_SYMBOLS:
+        return sym, get_daily_data(sym)
+    elif sym in AKSHARE_SYMBOLS:
+        return sym, get_daily_kline(sym)
+    return sym, None
+
+
+with st.spinner("正在并行加载数据..."):
+    all_symbols = list(AKSHARE_SYMBOLS.keys()) + list(YFINANCE_SYMBOLS.keys())
+    all_data = {}
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        futures = {executor.submit(_fetch_one, sym): sym for sym in all_symbols}
+        for future in as_completed(futures):
+            sym, df = future.result()
+            if df is not None:
+                all_data[sym] = df
+
     # 顶部指标品种数据
     top_data = {}
     top_config = {}
     for sym in TOP_METRICS:
-        if sym in YFINANCE_SYMBOLS:
-            top_data[sym] = get_daily_data(sym)
-            top_config[sym] = YFINANCE_SYMBOLS[sym]
-        elif sym in AKSHARE_SYMBOLS:
-            top_data[sym] = get_daily_kline(sym)
-            top_config[sym] = AKSHARE_SYMBOLS[sym]
-
-    # 全品种数据
-    all_data = {}
-    for sym, cfg in AKSHARE_SYMBOLS.items():
-        all_data[sym] = get_daily_kline(sym)
-    for sym, cfg in YFINANCE_SYMBOLS.items():
-        all_data[sym] = get_daily_data(sym)
+        if sym in all_data:
+            top_data[sym] = all_data[sym]
+            top_config[sym] = YFINANCE_SYMBOLS.get(sym) or AKSHARE_SYMBOLS.get(sym, {})
 
 # --- 顶部指标卡 ---
 render_top_metrics(top_data, top_config)
@@ -108,3 +119,21 @@ if not heatmap_df.empty:
     st.plotly_chart(fig, width="stretch")
 else:
     st.info("数据不足，无法生成热力图")
+
+st.divider()
+
+# --- 最新资讯预览 ---
+st.subheader("最新相关资讯")
+try:
+    from data.news_client import get_news
+    news_df = get_news(limit=5)
+    if not news_df.empty:
+        for _, row in news_df.iterrows():
+            time_str = str(row.get("时间", ""))
+            title = str(row.get("标题", ""))
+            st.markdown(f"- `{time_str}` **{title}**")
+        st.caption("更多资讯请前往「实时资讯」页面 →")
+    else:
+        st.caption("暂无相关资讯")
+except Exception:
+    st.caption("资讯模块加载失败，请前往「实时资讯」页面查看")

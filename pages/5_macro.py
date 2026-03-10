@@ -1,4 +1,4 @@
-"""宏观指标页 — PPI/CPI/PMI"""
+"""宏观指标页 — PPI/CPI/PMI（并行加载）"""
 
 import streamlit as st
 import sys
@@ -6,12 +6,23 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from concurrent.futures import ThreadPoolExecutor
 from data.macro_client import get_ppi, get_cpi, get_pmi
 from components.charts import create_line_chart
 
 st.set_page_config(page_title="宏观指标", page_icon="📈", layout="wide")
 st.title("宏观指标")
 st.caption("PPI / CPI / PMI — 工业通胀与经济景气度核心指标")
+
+# --- 并行加载三个宏观指标 ---
+with st.spinner("正在加载宏观数据..."):
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        fut_ppi = executor.submit(get_ppi)
+        fut_cpi = executor.submit(get_cpi)
+        fut_pmi = executor.submit(get_pmi)
+        ppi_df = fut_ppi.result()
+        cpi_df = fut_cpi.result()
+        pmi_df = fut_pmi.result()
 
 tab_ppi, tab_cpi, tab_pmi = st.tabs(["PPI 生产者物价指数", "CPI 居民消费价格指数", "PMI 采购经理指数"])
 
@@ -56,16 +67,10 @@ def _render_macro_tab(df, label, color, show_threshold=None):
 
 
 with tab_ppi:
-    with st.spinner("加载 PPI 数据..."):
-        ppi_df = get_ppi()
     _render_macro_tab(ppi_df, "PPI", "#FF6B6B")
 
 with tab_cpi:
-    with st.spinner("加载 CPI 数据..."):
-        cpi_df = get_cpi()
     _render_macro_tab(cpi_df, "CPI", "#4ECDC4")
 
 with tab_pmi:
-    with st.spinner("加载 PMI 数据..."):
-        pmi_df = get_pmi()
     _render_macro_tab(pmi_df, "PMI", "#FFE66D", show_threshold=50)

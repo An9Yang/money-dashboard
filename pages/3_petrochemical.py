@@ -27,8 +27,12 @@ for idx, sym in enumerate(symbols):
     name = cfg["name"]
 
     with tabs[idx]:
-        timeframe = st.radio("时间粒度", ["日线", "小时线"], horizontal=True,
-                            key=f"tf_{sym}")
+        opt_col1, opt_col2 = st.columns([2, 1])
+        with opt_col1:
+            timeframe = st.radio("时间粒度", ["日线", "小时线"], horizontal=True,
+                                key=f"tf_{sym}")
+        with opt_col2:
+            show_ta = st.checkbox("显示技术指标", key=f"ta_{sym}")
 
         if timeframe == "日线":
             df = get_daily_kline(sym)
@@ -41,7 +45,9 @@ for idx, sym in enumerate(symbols):
         with col1:
             render_price_card(name, df)
         with col2:
-            fig = create_candlestick(df, title=f"{name} K线图", date_col=date_col)
+            fig = create_candlestick(df, title=f"{name} K线图",
+                                     date_col=date_col,
+                                     show_indicators=show_ta)
             st.plotly_chart(fig, width="stretch")
         with col3:
             fig = create_volume_bar(df, date_col=date_col)
