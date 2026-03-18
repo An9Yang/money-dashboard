@@ -1,4 +1,4 @@
-"""全品种总览 — 核心页面（并行加载 + 新闻预览）"""
+"""全品种总览 — 核心页面（并行加载 + 新闻预览 + 数据导出）"""
 
 import streamlit as st
 import sys
@@ -6,19 +6,20 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import pandas as pd
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from streamlit_autorefresh import st_autorefresh
 from datetime import datetime
 from config import (AKSHARE_SYMBOLS, YFINANCE_SYMBOLS, TOP_METRICS,
-                    TIER_GROUPS, AUTO_REFRESH_DEFAULT_MS, TIERS)
+                    TIER_GROUPS, AUTO_REFRESH_DEFAULT_MS, TIERS,
+                    COLOR_SCHEMES, COLORS, ALERT_THRESHOLD_PCT,
+                    TRADING_SESSIONS)
 from data.akshare_client import get_daily_kline
 from data.yfinance_client import get_daily_data
 from data.data_processor import build_overview_row, build_heatmap_data, get_sparkline_data
 from components.metrics import render_top_metrics
 from components.tables import render_overview_table
 from components.charts import create_heatmap, create_sparkline
-
-st.set_page_config(page_title="大宗商品期货监控", page_icon="📊", layout="wide")
 
 # --- 侧边栏 ---
 with st.sidebar:
@@ -32,6 +33,15 @@ with st.sidebar:
     )
     if auto_refresh:
         st_autorefresh(interval=refresh_interval * 1000, key="overview_refresh")
+
+    st.divider()
+
+    # 颜色方案切换
+    st.header("显示设置")
+    scheme_name = st.selectbox("涨跌颜色方案", list(COLOR_SCHEMES.keys()), index=0)
+    st.session_state["color_scheme"] = COLOR_SCHEMES[scheme_name]
+    colors = COLOR_SCHEMES[scheme_name]
+
     st.divider()
     st.caption(f"最后更新: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
@@ -69,6 +79,28 @@ with st.spinner("正在并行加载数据..."):
             top_data[sym] = all_data[sym]
             top_config[sym] = YFINANCE_SYMBOLS.get(sym) or AKSHARE_SYMBOLS.get(sym, {})
 
+# --- 数据源状态指示器 ---
+with st.sidebar:
+    st.divider()
+    st.header("数据源状态")
+    akshare_loaded = [s for s in AKSHARE_SYMBOLS
+                      if s in all_data and not all_data[s].empty]
+    yfinance_loaded = [s for s in YFINANCE_SYMBOLS
+                       if s in all_data and not all_data[s].empty]
+    akshare_ok = len(akshare_loaded) > 0
+    yfinance_ok = len(yfinance_loaded) > 0
+
+    st.markdown(
+        f"{'🟢' if akshare_ok else '🔴'} AKShare (中国期货) "
+        f"— {len(akshare_loaded)}/{len(AKSHARE_SYMBOLS)}"
+    )
+    st.markdown(
+        f"{'🟢' if yfinance_ok else '🔴'} yfinance (国际期货) "
+        f"— {len(yfinance_loaded)}/{len(YFINANCE_SYMBOLS)}"
+    )
+    if not yfinance_ok:
+        st.warning("yfinance 无法连接，国际品种数据不可用。可能需要科学上网。")
+
 # --- 顶部指标卡 ---
 render_top_metrics(top_data, top_config)
 
@@ -93,11 +125,29 @@ for tier_id in ["T1", "T2", "T3"]:
 
 render_overview_table(overview_rows)
 
+# --- 价格预警 ---
+alerts = [r for r in overview_rows
+          if r["日涨跌%"] is not None and abs(r["日涨跌%"]) >= ALERT_THRESHOLD_PCT]
+if alerts:
+    for a in alerts:
+        direction = "涨" if a["日涨跌%"] > 0 else "跌"
+        st.toast(f"⚠️ {a['品种']} 日{direction}幅 {a['日涨跌%']:+.2f}% 超过阈值 {ALERT_THRESHOLD_PCT}%")
+
+# --- 数据导出 ---
+if overview_rows:
+    export_df = pd.DataFrame(overview_rows)
+    csv_data = export_df.to_csv(index=False).encode("utf-8-sig")
+    st.download_button(
+        label="导出汇总数据 (CSV)",
+        data=csv_data,
+        file_name=f"commodity_overview_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+        mime="text/csv",
+    )
+
 st.divider()
 
 # --- 迷你走势图 ---
 st.subheader("近两周走势一览")
-# 每行 6 个迷你走势图
 _SPARK_COLS = 6
 spark_items = []
 for row in overview_rows:
@@ -122,7 +172,8 @@ st.divider()
 st.subheader("涨跌幅热力图")
 heatmap_df = build_heatmap_data(overview_rows)
 if not heatmap_df.empty:
-    fig = create_heatmap(heatmap_df)
+    fig = create_heatmap(heatmap_df,
+                         color_up=colors["up"], color_down=colors["down"])
     st.plotly_chart(fig, use_container_width=True)
 else:
     st.info("数据不足，无法生成热力图")

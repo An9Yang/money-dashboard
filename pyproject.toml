@@ -1,0 +1,24 @@
+[project]
+name = "money-dashboard"
+version = "0.1.0"
+description = "大宗商品期货监控 Dashboard"
+requires-python = ">=3.12"
+dependencies = [
+    "streamlit>=1.55.0",
+    "streamlit-autorefresh",
+    "akshare",
+    "yfinance",
+    "plotly",
+    "pandas",
+    "numpy",
+    "requests",
+    "openpyxl",
+]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["data*", "components*"]

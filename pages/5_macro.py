@@ -6,18 +6,16 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import pandas as pd
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from data.macro_client import get_ppi, get_cpi, get_pmi
 from components.charts import create_line_chart
 
-st.set_page_config(page_title="宏观指标", page_icon="📈", layout="wide")
 st.title("宏观指标")
 st.caption("PPI / CPI / PMI — 工业通胀与经济景气度核心指标")
 
-import pandas as pd
-
 # --- 并行加载三个宏观指标（带超时保护） ---
-_LOAD_TIMEOUT = 20  # 秒
+_LOAD_TIMEOUT = 20
 
 with st.spinner("正在加载宏观数据（首次加载可能稍慢）..."):
     with ThreadPoolExecutor(max_workers=3) as executor:
@@ -57,7 +55,6 @@ def _render_macro_tab(df, label, color, show_threshold=None):
     latest_date = recent["date"].iloc[-1]
     date_str = latest_date.strftime('%Y-%m-%d') if hasattr(latest_date, 'strftime') else str(latest_date)
 
-    # 指标卡片区
     col1, col2, col3 = st.columns([1, 1, 4])
     with col1:
         st.metric(f"最新 {label}", f"{latest_val}")
@@ -71,20 +68,24 @@ def _render_macro_tab(df, label, color, show_threshold=None):
 
     st.divider()
 
-    # 趋势图
     fig = create_line_chart(recent, "date", "value",
                             title=f"{label} 近 24 期趋势", color=color)
     if show_threshold is not None:
         fig.add_hline(y=show_threshold, line_dash="dash", line_color="white",
-                     annotation_text=f"荣枯线 {show_threshold}")
+                      annotation_text=f"荣枯线 {show_threshold}")
     st.plotly_chart(fig, use_container_width=True)
 
-    # 数据表格（可折叠）
     with st.expander("查看历史数据", expanded=False):
         display = recent[["date", "value"]].copy()
         display["date"] = display["date"].dt.strftime("%Y-%m-%d")
         display = display.iloc[::-1].rename(columns={"date": "日期", "value": "数值"})
         st.dataframe(display, use_container_width=True, hide_index=True)
+
+    # 数据导出
+    csv = recent[["date", "value"]].to_csv(index=False).encode("utf-8-sig")
+    st.download_button(f"导出 {label} 数据 (CSV)", csv,
+                       file_name=f"{label}.csv", mime="text/csv",
+                       key=f"export_{label}")
 
 
 with tab_ppi:

@@ -67,9 +67,29 @@ CACHE_TTL = {
 # 自动刷新默认间隔（毫秒）
 AUTO_REFRESH_DEFAULT_MS = 300_000  # 5分钟
 
-# 涨跌幅颜色
+# 涨跌幅颜色（默认中国习惯）
 COLORS = {
     "up": "#FF4B4B",     # 红色（涨）
     "down": "#00C853",   # 绿色（跌）
     "flat": "#888888",   # 灰色（平）
 }
+
+# 颜色方案（中国: 涨红跌绿 / 国际: 涨绿跌红）
+COLOR_SCHEMES = {
+    "中国 (涨红跌绿)": {"up": "#FF4B4B", "down": "#00C853", "flat": "#888888"},
+    "国际 (涨绿跌红)": {"up": "#00C853", "down": "#FF4B4B", "flat": "#888888"},
+}
+
+# 交易时段
+TRADING_SESSIONS = {
+    "SHFE": {"day": "09:00-15:00", "night": "21:00-01:00", "tz": "Asia/Shanghai"},
+    "DCE": {"day": "09:00-15:00", "night": "21:00-23:00", "tz": "Asia/Shanghai"},
+    "CZCE": {"day": "09:00-15:00", "night": "21:00-23:00", "tz": "Asia/Shanghai"},
+    "INE": {"day": "09:00-15:00", "night": "21:00-02:30", "tz": "Asia/Shanghai"},
+    "NYMEX": {"session": "~23h/day", "tz": "America/New_York"},
+    "ICE": {"session": "~23h/day", "tz": "Europe/London"},
+    "FX": {"session": "24h", "tz": "UTC"},
+}
+
+# 价格预警阈值（涨跌幅超过此百分比触发提醒）
+ALERT_THRESHOLD_PCT = 3.0

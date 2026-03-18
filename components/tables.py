@@ -1,23 +1,25 @@
-"""涨跌幅表格（红绿配色）"""
+"""涨跌幅表格（红绿配色，支持中国/国际配色方案）"""
 
 import streamlit as st
 import pandas as pd
-from config import TIERS
+from config import TIERS, COLORS
+
+
+def _get_color_scheme():
+    """从 session_state 获取当前颜色方案"""
+    return st.session_state.get("color_scheme", COLORS)
 
 
 def color_change(val):
     """涨跌幅红绿色阶渲染"""
     if pd.isna(val):
         return "color: #888888"
+    scheme = _get_color_scheme()
     if val > 0:
-        intensity = min(abs(val) / 5, 1)
-        r = int(255 * intensity)
-        return f"color: rgb({r}, 75, 75); font-weight: bold"
+        return f"color: {scheme['up']}; font-weight: bold"
     elif val < 0:
-        intensity = min(abs(val) / 5, 1)
-        g = int(200 * intensity)
-        return f"color: rgb(0, {g}, 83); font-weight: bold"
-    return "color: #888888"
+        return f"color: {scheme['down']}; font-weight: bold"
+    return f"color: {scheme['flat']}"
 
 
 def color_tier(val):
@@ -54,14 +56,15 @@ def render_overview_table(rows: list):
 
 def _build_html_table(raw_df: pd.DataFrame, display_df: pd.DataFrame) -> str:
     """构建带颜色的 HTML 表格"""
-    style = """
+    scheme = _get_color_scheme()
+    style = f"""
     <style>
-    .overview-table {
+    .overview-table {{
         width: 100%;
         border-collapse: collapse;
         font-size: 14px;
-    }
-    .overview-table th {
+    }}
+    .overview-table th {{
         background-color: #1E1E1E;
         color: #CCCCCC;
         padding: 8px 12px;
@@ -69,20 +72,20 @@ def _build_html_table(raw_df: pd.DataFrame, display_df: pd.DataFrame) -> str:
         border-bottom: 2px solid #333;
         position: sticky;
         top: 0;
-    }
-    .overview-table td {
+    }}
+    .overview-table td {{
         padding: 6px 12px;
         border-bottom: 1px solid #2A2A2A;
-    }
-    .overview-table tr:hover {
+    }}
+    .overview-table tr:hover {{
         background-color: #1A1A2E;
-    }
-    .up { color: #FF4B4B; font-weight: bold; }
-    .down { color: #00C853; font-weight: bold; }
-    .flat { color: #888888; }
-    .tier-T1 { background-color: #FF4B4B20; color: #FF4B4B; font-weight: bold; padding: 2px 8px; border-radius: 4px; }
-    .tier-T2 { background-color: #FFA50020; color: #FFA500; font-weight: bold; padding: 2px 8px; border-radius: 4px; }
-    .tier-T3 { background-color: #4B9DFF20; color: #4B9DFF; font-weight: bold; padding: 2px 8px; border-radius: 4px; }
+    }}
+    .up {{ color: {scheme['up']}; font-weight: bold; }}
+    .down {{ color: {scheme['down']}; font-weight: bold; }}
+    .flat {{ color: {scheme['flat']}; }}
+    .tier-T1 {{ background-color: #FF4B4B20; color: #FF4B4B; font-weight: bold; padding: 2px 8px; border-radius: 4px; }}
+    .tier-T2 {{ background-color: #FFA50020; color: #FFA500; font-weight: bold; padding: 2px 8px; border-radius: 4px; }}
+    .tier-T3 {{ background-color: #4B9DFF20; color: #4B9DFF; font-weight: bold; padding: 2px 8px; border-radius: 4px; }}
     </style>
     """
 

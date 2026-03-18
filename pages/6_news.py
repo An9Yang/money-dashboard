@@ -1,5 +1,6 @@
-"""实时资讯 — 财联社电报（大宗商品相关）"""
+"""实时资讯 — 财联社电报（大宗商品相关）+ 关键词高亮"""
 
+import re
 import streamlit as st
 import sys
 import os
@@ -10,7 +11,6 @@ from streamlit_autorefresh import st_autorefresh
 from datetime import datetime
 from data.news_client import get_news, DEFAULT_KEYWORDS
 
-st.set_page_config(page_title="实时资讯", page_icon="📰", layout="wide")
 st.title("实时资讯")
 st.caption("财联社电报 — 大宗商品及能源相关资讯实时追踪")
 
@@ -45,6 +45,21 @@ with st.sidebar:
     st.caption(f"当前过滤关键词: {len(keywords)} 个")
     limit = st.slider("显示条数", min_value=10, max_value=100, value=30, step=10)
 
+
+def _highlight_keywords(text: str, kws: list) -> str:
+    """在文本中高亮匹配的关键词（HTML <mark> 标签）"""
+    if not text or not kws:
+        return text
+    pattern = "|".join(re.escape(k) for k in kws if k)
+    if not pattern:
+        return text
+    return re.sub(
+        f"({pattern})",
+        r'<span style="background-color:#FFE66D33;color:#FFE66D;font-weight:bold;padding:0 2px;border-radius:2px">\1</span>',
+        text,
+    )
+
+
 # --- 加载新闻 ---
 with st.spinner("正在获取最新资讯..."):
     news_df = get_news(keywords=keywords, limit=limit)
@@ -59,12 +74,19 @@ else:
         title = str(row.get("标题", ""))
         content = str(row.get("内容", ""))
 
+        # 高亮关键词
+        title_hl = _highlight_keywords(title, keywords)
+        content_hl = _highlight_keywords(content, keywords)
+
         with st.container():
             col_time, col_content = st.columns([1, 5])
             with col_time:
                 st.caption(time_str)
             with col_content:
-                st.markdown(f"**{title}**")
+                st.markdown(f"**{title_hl}**", unsafe_allow_html=True)
                 if content and content != title and content != "nan":
-                    st.caption(content[:200])
+                    st.markdown(
+                        f"<small>{content_hl[:300]}</small>",
+                        unsafe_allow_html=True,
+                    )
             st.divider()
